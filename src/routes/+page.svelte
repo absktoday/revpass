@@ -134,50 +134,75 @@
   });
 
   async function handleSetup() {
+    console.log("[Setup] Starting vault initialization with passkey name:", firstPasskeyName);
     setupError = "";
     setupSuccess = false;
     try {
+      console.log("[Setup] Requesting Passkey registration via WebAuthn...");
       const reg = await registerPasskey(firstPasskeyName);
+      console.log("[Setup] Passkey registration returned:", {
+        credentialId: reg.credentialId,
+        prfEnabled: reg.prfEnabled,
+        hasPrfOutput: !!reg.prfOutput,
+        prfSaltLength: reg.prfSalt.byteLength
+      });
+
       if (!reg.prfEnabled) {
         throw new Error("Your browser registered the Passkey, but the authenticator did not enable the PRF extension. A device with PRF encryption capabilities is required.");
       }
 
       let prfOutput = reg.prfOutput;
       if (!prfOutput) {
-        // Fallback: Authenticate immediately to fetch it.
+        console.log("[Setup] PRF output was not returned during creation. Triggering immediate assertion fallback to get the key...");
         prfOutput = await getPasskeyPrfOutput(reg.credentialId, reg.prfSalt);
+        console.log("[Setup] Immediate assertion fallback successful. PRF output byte length:", prfOutput.byteLength);
+      } else {
+        console.log("[Setup] PRF output returned directly during registration. Byte length:", prfOutput.byteLength);
       }
 
+      console.log("[Setup] Generating Master Encryption Key (MEK)...");
       const mek = generateMEK();
       rawMekBytes = mek;
+      console.log("[Setup] MEK generated successfully. Importing MEK...");
       mekKey = await importMEK(mek);
 
+      console.log("[Setup] Deriving Passkey Derived Key (PDK) using HKDF-SHA256...");
       const pdk = await derivePDK(prfOutput, reg.credentialId);
+
+      console.log("[Setup] Encrypting MEK with PDK using AES-GCM...");
       const encryptedMek = await encryptMEK(mek, pdk);
 
+      console.log("[Setup] Saving primary passkey metadata to SQLite database...");
       await savePasskey(
         reg.credentialId,
         firstPasskeyName,
         arrayBufferToBase64(reg.prfSalt.buffer as ArrayBuffer),
         JSON.stringify(encryptedMek)
       );
+      console.log("[Setup] Passkey metadata saved to SQLite.");
 
+      console.log("[Setup] Generating recovery key...");
       const recoveryKey = generateRecoveryKey();
       generatedRecoveryKey = recoveryKey;
       actualRecoveryKeyString = recoveryKey;
 
+      console.log("[Setup] Deriving Recovery Key Derived Key (RecoveryDK) using PBKDF2...");
       const recoverySalt = crypto.getRandomValues(new Uint8Array(16));
       const recoveryDk = await deriveRecoveryDK(recoveryKey, recoverySalt);
+      
+      console.log("[Setup] Encrypting MEK with RecoveryDK...");
       const encryptedMekWithRecovery = await encryptMEK(mek, recoveryDk);
 
+      console.log("[Setup] Saving recovery metadata to SQLite...");
       await initializeVaultMetadata(
         arrayBufferToBase64(recoverySalt.buffer as ArrayBuffer),
         JSON.stringify(encryptedMekWithRecovery)
       );
+      console.log("[Setup] Vault metadata initialized successfully.");
 
       setupSuccess = true;
     } catch (err: any) {
-      console.error(err);
+      console.error("[Setup Error] Failed to initialize vault:", err);
       setupError = err.message || "Credential setup failed. Please make sure biometrics or PIN is configured.";
     }
   }

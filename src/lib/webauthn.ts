@@ -110,4 +110,53 @@ export async function registerPasskey(username: string = "Vault User"): Promise<
 }
 
 // Request the PRF key from an existing passkey by asserting it
-export async function getPasskeyPrfOutput(credentialId: string, salt: Uint8A
+export async function getPasskeyPrfOutput(credentialId: string, salt: Uint8Array): Promise<ArrayBuffer> {
+  console.log("[WebAuthn] Requesting assertion (get) for credential ID:", credentialId);
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const rpId = window.location.hostname || "localhost";
+  const credentialIdBuffer = base64UrlToArrayBuffer(credentialId);
+
+  const options: any = {
+    challenge,
+    rpId,
+    allowCredentials: [
+      {
+        type: "public-key",
+        id: credentialIdBuffer
+      }
+    ],
+    userVerification: "required",
+    extensions: {
+      prf: {
+        eval: {
+          first: salt
+        }
+      }
+    }
+  };
+
+  console.log("[WebAuthn] Calling navigator.credentials.get with options:", options);
+
+  try {
+    const assertion = (await navigator.credentials.get({
+      publicKey: options
+    })) as any;
+
+    if (!assertion) {
+      throw new Error("navigator.credentials.get returned null");
+    }
+
+    console.log("[WebAuthn] Assertion returned successfully:", assertion);
+    const extResults = assertion.getClientExtensionResults() as any;
+    console.log("[WebAuthn] Assertion extension results:", extResults);
+    
+    if (!extResults.prf?.results?.first) {
+      throw new Error("This Passkey/Authenticator did not return PRF key material. Make sure you are using a device that supports PRF.");
+    }
+
+    return extResults.prf.results.first as ArrayBuffer;
+  } catch (e: any) {
+    console.error("[WebAuthn Error] navigator.credentials.get failed:", e);
+    throw e;
+  }
+}
