@@ -15,7 +15,8 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-sql": "^2.4.0"
+    "@tauri-apps/plugin-sql": "^2.4.0",
+    "mode-watcher": "^1.1.0"
   },
   "devDependencies": {
     "@fontsource-variable/roboto-slab": "^5.2.8",

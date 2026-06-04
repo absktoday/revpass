@@ -29,6 +29,7 @@
   import * as Card from "$lib/components/ui/card";
   import * as Dialog from "$lib/components/ui/dialog";
   import * as Select from "$lib/components/ui/select";
+  import ThemeToggle from "$lib/components/ThemeToggle.svelte";
 
   // App state
   let appState = $state<"loading" | "setup" | "locked" | "dashboard">("loading");
@@ -480,8 +481,14 @@
   }
 </script>
 
-<main class="min-h-screen bg-background text-foreground flex flex-col font-sans">
+<main class="min-h-screen bg-background text-foreground flex flex-col font-sans relative">
   
+  {#if appState !== "dashboard"}
+    <div class="absolute top-4 right-4 z-50">
+      <ThemeToggle />
+    </div>
+  {/if}
+
   <!-- LOADING STATE -->
   {#if appState === "loading"}
     <div class="flex-1 flex flex-col items-center justify-center space-y-4" in:fade>
@@ -672,6 +679,7 @@
 
       <!-- Controls -->
       <div class="flex items-center gap-2">
+        <ThemeToggle />
         <Button 
           variant="outline" 
           size="sm"
