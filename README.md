@@ -55,7 +55,7 @@ Ensure you have the following installed on your machine:
 
 1. Clone the repository and navigate to the project directory:
    ```bash
-   git clone https://github.com/your-username/revpass.git
+   git clone https://github.com/absktoday/revpass.git
    cd revpass
    ```
 
