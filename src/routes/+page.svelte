@@ -514,7 +514,7 @@
           <div class="mx-auto p-4 bg-primary/10 border border-primary/20 rounded-2xl text-primary w-fit">
             <Shield class="w-10 h-10" />
           </div>
-          <Card.Title class="text-3xl font-extrabold tracking-tight">Aegis Vault</Card.Title>
+          <Card.Title class="text-3xl font-extrabold tracking-tight">RevPass</Card.Title>
           <Card.Description class="text-sm">
             Create a secure, zero-knowledge, local-first database protected directly by your device's biometric Passkey (via the WebAuthn PRF extension).
           </Card.Description>
@@ -682,7 +682,7 @@
           <Shield class="w-6 h-6" />
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-lg font-bold tracking-wider">Aegis Vault</span>
+          <span class="text-lg font-bold tracking-wider">RevPass</span>
           <Badge variant="secondary" class="text-[10px] py-0.5">Local Encrypted</Badge>
         </div>
       </div>

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-app",
+  "productName": "RevPass",
   "version": "0.1.0",
-  "identifier": "io.absk.tauri-app",
+  "identifier": "io.absk.revpass",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-app",
+        "title": "RevPass",
         "width": 800,
         "height": 600
       }
