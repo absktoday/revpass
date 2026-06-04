@@ -3,8 +3,9 @@
   import { fade, slide, fly, scale } from "svelte/transition";
   import { 
     Lock, Unlock, KeyRound, Key, Plus, Search, Trash2, Edit3, Copy, Check, Eye, EyeOff, 
-    Settings, Shield, LogOut, CopyCheck, AlertTriangle, RefreshCw, FileText, Globe, User, ExternalLink
+    Settings, Shield, LogOut, CopyCheck, AlertTriangle, RefreshCw, FileText, Globe, User, ExternalLink, Database
   } from "@lucide/svelte";
+  import { appDataDir, join } from "@tauri-apps/api/path";
   import { 
     generateMEK, importMEK, derivePDK, encryptMEK, decryptMEK, 
     generateRecoveryKey, deriveRecoveryDK, encryptField, decryptField,
@@ -84,6 +85,7 @@
   let showRecoveryKeyReveal = $state(false);
   let actualRecoveryKeyString = $state("");
   let showRecoveryForm = $state(false);
+  let dbPath = $state("");
 
   // UI copy helpers
   let copiedId = $state<string | null>(null);
@@ -133,6 +135,14 @@
     } catch (e) {
       console.error("Initialization error:", e);
       appState = "setup";
+    }
+
+    try {
+      const appData = await appDataDir();
+      dbPath = await join(appData, "vault.db");
+    } catch (e) {
+      console.error("Failed to resolve db path:", e);
+      dbPath = "Unknown (Unable to resolve Tauri path)";
     }
   });
 
@@ -837,6 +847,42 @@
                     {/if}
                   </Button>
                 </div>
+              </div>
+            </Card.Content>
+          </Card.Root>
+
+          <!-- Database Location Card -->
+          <Card.Root>
+            <Card.Header>
+              <Card.Title class="text-md font-bold flex items-center gap-2">
+                <Database class="w-5 h-5 text-primary" />
+                Database Location
+              </Card.Title>
+              <Card.Description class="text-xs">
+                Physical path to your encrypted SQLite database file on this device.
+              </Card.Description>
+            </Card.Header>
+            <Card.Content>
+              <div class="bg-muted/40 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <code class="font-mono text-xs select-all text-muted-foreground break-all leading-relaxed flex-1">
+                  {dbPath || "Resolving database path..."}
+                </code>
+                {#if dbPath}
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    class="shrink-0 font-semibold"
+                    onclick={() => copyText(dbPath, "dbpath")}
+                  >
+                    {#if copiedId === "dbpath"}
+                      <Check class="w-4 h-4 text-emerald-500 mr-2" />
+                      Copied
+                    {:else}
+                      <Copy class="w-4 h-4 mr-2" />
+                      Copy Path
+                    {/if}
+                  </Button>
+                {/if}
               </div>
             </Card.Content>
           </Card.Root>
