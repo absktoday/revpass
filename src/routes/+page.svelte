@@ -63,6 +63,7 @@
   let searchQuery = $state("");
   let activeCategory = $state<"all" | "login" | "note">("all");
   let selectedCredentialId = $state<string | null>(null);
+  let mobileView = $state<"list" | "detail">("list");
 
   // Add/Edit modal variables
   let showAddModal = $state(false);
@@ -81,6 +82,7 @@
   let isAddingPasskey = $state(false);
   let showRecoveryKeyReveal = $state(false);
   let actualRecoveryKeyString = $state("");
+  let showRecoveryForm = $state(false);
 
   // UI copy helpers
   let copiedId = $state<string | null>(null);
@@ -200,7 +202,10 @@
       );
       console.log("[Setup] Vault metadata initialized successfully.");
 
-      setupSuccess = true;
+      // Reload passkeys so it is populated in settings
+      passkeysList = await loadPasskeys();
+      decryptedCredentials = [];
+      appState = "dashboard";
     } catch (err: any) {
       console.error("[Setup Error] Failed to initialize vault:", err);
       setupError = err.message || "Credential setup failed. Please make sure biometrics or PIN is configured.";
@@ -459,6 +464,8 @@
     mekKey = null;
     decryptedCredentials = [];
     selectedCredentialId = null;
+    mobileView = "list";
+    showRecoveryForm = false;
     setupError = "";
     recoveryKeyInput = "";
     showSettings = false;
@@ -507,77 +514,32 @@
             </div>
           {/if}
 
-          {#if !setupSuccess}
-            <div class="space-y-4">
-              <div class="space-y-1.5 text-left">
-                <Label for="passkey-name" class="text-xs font-semibold uppercase tracking-wider">Primary Passkey Name</Label>
-                <Input 
-                  type="text" 
-                  id="passkey-name"
-                  class="w-full"
-                  bind:value={firstPasskeyName} 
-                  placeholder="e.g. My Windows Hello" 
-                />
-              </div>
-
-              {#if setupError}
-                <p class="text-destructive text-xs text-left bg-destructive/10 border border-destructive/20 p-3 rounded-xl leading-relaxed">
-                  {setupError}
-                </p>
-              {/if}
-
-              <Button 
-                class="w-full py-6 flex items-center justify-center gap-2"
-                onclick={handleSetup}
-              >
-                <KeyRound class="w-5 h-5" />
-                Initialize Vault with Passkey
-              </Button>
+          <div class="space-y-4">
+            <div class="space-y-1.5 text-left">
+              <Label for="passkey-name" class="text-xs font-semibold uppercase tracking-wider">Primary Passkey Name</Label>
+              <Input 
+                type="text" 
+                id="passkey-name"
+                class="w-full"
+                bind:value={firstPasskeyName} 
+                placeholder="e.g. My Windows Hello" 
+              />
             </div>
-          {:else}
-            <!-- SETUP SUCCESS: DISPLAY RECOVERY KEY -->
-            <div class="space-y-6 text-left" in:slide>
-              <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 flex items-start gap-3">
-                <Check class="w-5 h-5 shrink-0 mt-0.5" />
-                <div>
-                  <span class="font-bold block text-sm">Vault Initialized Successfully!</span>
-                  <span class="text-xs leading-normal block mt-0.5">Your Master Encryption Key has been generated and protected by your Passkey.</span>
-                </div>
-              </div>
 
-              <div class="space-y-2">
-                <Label class="text-xs font-bold uppercase tracking-wider">Emergency Recovery Key</Label>
-                <p class="text-xs text-muted-foreground leading-normal">
-                  Write down this key. If you lose your Passkey or reset Windows, this key is the <strong>only way</strong> to recover your vault.
-                </p>
-                <div class="flex items-center gap-2 bg-muted border rounded-xl p-3.5 mt-2">
-                  <code class="font-mono text-primary text-sm select-all flex-1 text-center font-bold tracking-wide">
-                    {generatedRecoveryKey}
-                  </code>
-                  <Button 
-                    variant="outline"
-                    size="icon"
-                    onclick={copyRecoveryKeyText}
-                    title="Copy Key"
-                  >
-                    {#if copiedRecoveryKey}
-                      <Check class="w-4 h-4 text-emerald-500" />
-                    {:else}
-                      <Copy class="w-4 h-4" />
-                    {/if}
-                  </Button>
-                </div>
-              </div>
+            {#if setupError}
+              <p class="text-destructive text-xs text-left bg-destructive/10 border border-destructive/20 p-3 rounded-xl leading-relaxed">
+                {setupError}
+              </p>
+            {/if}
 
-              <Button 
-                class="w-full py-6 flex items-center justify-center gap-2"
-                onclick={enterVaultFromSetup}
-              >
-                <Unlock class="w-5 h-5" />
-                I Saved the Key, Enter Vault
-              </Button>
-            </div>
-          {/if}
+            <Button 
+              class="w-full py-6 flex items-center justify-center gap-2"
+              onclick={handleSetup}
+            >
+              <KeyRound class="w-5 h-5" />
+              Initialize Vault with Passkey
+            </Button>
+          </div>
         </Card.Content>
       </Card.Root>
     </div>
@@ -638,36 +600,58 @@
             </div>
           {/if}
 
-          <!-- Divider -->
-          <div class="w-full flex items-center justify-center gap-3 py-2">
-            <Separator class="flex-1" />
-            <span class="text-xs font-bold text-muted-foreground uppercase tracking-widest">Or Use Recovery</span>
-            <Separator class="flex-1" />
-          </div>
-
-          <!-- Option 2: Recovery Key Unlock -->
-          <div class="w-full space-y-4 text-left">
-            <div class="space-y-1.5">
-              <Label for="recovery-input" class="text-xs font-semibold uppercase tracking-wider">Recovery Key</Label>
-              <Input 
-                type="text" 
-                id="recovery-input"
-                class="text-center tracking-wider text-sm placeholder:tracking-normal placeholder:font-sans font-mono py-6"
-                bind:value={recoveryKeyInput} 
-                placeholder="VLT-XXXX-XXXX-XXXX..." 
-                disabled={isUnlocking}
-              />
+          {#if showRecoveryForm}
+            <!-- Divider -->
+            <div class="w-full flex items-center justify-center gap-3 py-2" in:slide>
+              <Separator class="flex-1" />
+              <span class="text-xs font-bold text-muted-foreground uppercase tracking-widest font-sans">Recovery Login</span>
+              <Separator class="flex-1" />
             </div>
 
-            <Button 
-              variant="outline"
-              class="w-full py-6"
-              onclick={handleUnlockWithRecoveryKey}
-              disabled={isUnlocking || !recoveryKeyInput.trim()}
-            >
-              Unlock with Recovery Key
-            </Button>
-          </div>
+            <!-- Option 2: Recovery Key Unlock -->
+            <div class="w-full space-y-4 text-left" in:slide>
+              <div class="space-y-1.5">
+                <Label for="recovery-input" class="text-xs font-semibold uppercase tracking-wider">Recovery Key</Label>
+                <Input 
+                  type="text" 
+                  id="recovery-input"
+                  class="text-center tracking-wider text-sm placeholder:tracking-normal placeholder:font-sans font-mono py-6"
+                  bind:value={recoveryKeyInput} 
+                  placeholder="VLT-XXXX-XXXX-XXXX..." 
+                  disabled={isUnlocking}
+                />
+              </div>
+
+              <Button 
+                variant="outline"
+                class="w-full py-6"
+                onclick={handleUnlockWithRecoveryKey}
+                disabled={isUnlocking || !recoveryKeyInput.trim()}
+              >
+                Unlock with Recovery Key
+              </Button>
+
+              <div class="w-full text-center">
+                <Button 
+                  variant="link" 
+                  class="text-xs text-muted-foreground hover:text-primary p-0 h-auto"
+                  onclick={() => showRecoveryForm = false}
+                >
+                  &larr; Back to Passkey Login
+                </Button>
+              </div>
+            </div>
+          {:else}
+            <div class="w-full text-center" in:fade>
+              <Button 
+                variant="link" 
+                class="text-xs text-muted-foreground hover:text-primary p-0 h-auto"
+                onclick={() => showRecoveryForm = true}
+              >
+                Lost your passkey? Use recovery key
+              </Button>
+            </div>
+          {/if}
         </Card.Content>
       </Card.Root>
     </div>
@@ -852,8 +836,8 @@
 
       {:else}
         <!-- CREDENTIALS WORKSPACE -->
-        <!-- Left Panel: Sidebar Filters -->
-        <aside class="w-64 bg-card border-r flex flex-col p-4 space-y-6">
+        <!-- Left Panel: Sidebar Filters (Desktop Only) -->
+        <aside class="hidden md:flex w-64 bg-card border-r flex-col p-4 space-y-6">
           <Button 
             class="w-full py-6 flex items-center justify-center gap-2"
             onclick={openAddModal}
@@ -910,18 +894,58 @@
         </aside>
 
         <!-- Middle Panel: Credentials List -->
-        <section class="w-80 border-r flex flex-col">
+        <section class="w-full md:w-80 border-r flex flex-col {selectedCredentialId && mobileView === 'detail' ? 'hidden md:flex' : 'flex'}">
           <!-- Search -->
-          <div class="p-4 border-b bg-card relative">
-            <Input 
-              type="text" 
-              class="w-full pl-9" 
-              placeholder="Search passwords..." 
-              bind:value={searchQuery}
-            />
-            <div class="absolute inset-y-0 left-0 pl-7 flex items-center pointer-events-none text-muted-foreground">
-              <Search class="w-4 h-4" />
+          <div class="p-4 border-b bg-card flex items-center gap-2">
+            <div class="relative flex-1">
+              <Input 
+                type="text" 
+                class="w-full pl-9" 
+                placeholder="Search passwords..." 
+                bind:value={searchQuery}
+              />
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
+                <Search class="w-4 h-4" />
+              </div>
             </div>
+            
+            <!-- Mobile New Password FAB/Button -->
+            <Button 
+              size="icon" 
+              class="md:hidden"
+              onclick={openAddModal}
+              title="New Password"
+            >
+              <Plus class="w-4 h-4" />
+            </Button>
+          </div>
+
+          <!-- Mobile Categories Horizontal Scroll -->
+          <div class="md:hidden flex gap-2 p-3 overflow-x-auto border-b bg-muted/20 shrink-0">
+            <Button 
+              variant={activeCategory === 'all' ? 'secondary' : 'ghost'} 
+              size="sm"
+              class="h-8 text-[11px] font-semibold"
+              onclick={() => activeCategory = "all"}
+            >
+              All ({decryptedCredentials.length})
+            </Button>
+            <Button 
+              variant={activeCategory === 'login' ? 'secondary' : 'ghost'} 
+              size="sm"
+              class="h-8 text-[11px] font-semibold"
+              onclick={() => activeCategory = "login"}
+            >
+              Logins ({decryptedCredentials.filter(c => c.url.trim() !== "").length})
+            </Button>
+            <Button 
+              variant={activeCategory === 'note' ? 'secondary' : 'ghost'} 
+              size="sm"
+              class="h-8 text-[11px] font-semibold"
+              onclick={() => activeCategory = "note"}
+            >
+              Notes ({decryptedCredentials.filter(c => c.url.trim() === "" && c.password.trim() === "").length})
+            </Button>
           </div>
 
           <!-- Entries list -->
@@ -934,7 +958,10 @@
               {#each filteredCredentials as c}
                 <button 
                   class="w-full text-left p-4 transition border-l-2 flex flex-col gap-1 {selectedCredentialId === c.id ? 'bg-primary/5 border-primary' : 'hover:bg-muted/30 border-transparent'}"
-                  onclick={() => selectedCredentialId = c.id}
+                  onclick={() => {
+                    selectedCredentialId = c.id;
+                    mobileView = "detail";
+                  }}
                 >
                   <span class="text-xs font-bold truncate">{c.title}</span>
                   <span class="text-[10px] text-muted-foreground truncate">{c.username || 'No Username'}</span>
@@ -951,10 +978,20 @@
         </section>
 
         <!-- Right Panel: Entry Details -->
-        <section class="flex-1 bg-muted/20 p-8 overflow-y-auto">
+        <section class="flex-1 bg-muted/20 p-4 md:p-8 overflow-y-auto {!selectedCredentialId || mobileView === 'list' ? 'hidden md:block' : 'block'}">
           {#if selectedCredential}
             <div class="max-w-2xl mx-auto space-y-6" in:fade>
               
+              <!-- Mobile Back Button -->
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                class="md:hidden flex items-center gap-1.5 mb-2 pl-0 hover:bg-transparent"
+                onclick={() => mobileView = "list"}
+              >
+                &larr; Back to List
+              </Button>
+
               <!-- Header details -->
               <div class="flex items-start justify-between border-b pb-5">
                 <div class="space-y-2">
