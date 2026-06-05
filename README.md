@@ -4,6 +4,18 @@ RevPass is a modern, zero-knowledge, local-first password vault built with **Tau
 
 Unlike traditional password managers that rely on master passwords or cloud servers, RevPass uses the cutting-edge **WebAuthn PRF (Pseudo-Random Function) Extension** to secure your local database. Your vault is unlocked using your device's biometrics (like Windows Hello or Touch ID) or hardware security keys (like YubiKeys) without any master password memorization.
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="assets/dashboard.png" width="48%" alt="RevPass Dashboard" />
+  <img src="assets/locked.png" width="48%" alt="RevPass Locked State" />
+</p>
+
+<p align="center">
+  <img src="assets/setup.png" width="48%" alt="RevPass Setup" />
+  <img src="assets/settings.png" width="48%" alt="RevPass Settings" />
+</p>
+
 ---
 
 ## 🌟 Key Features

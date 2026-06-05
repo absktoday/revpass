@@ -17,7 +17,7 @@
     type PasskeyRecord, type DbCredential 
   } from "$lib/db";
   import { 
-    checkPrfSupport, registerPasskey, getPasskeyPrfOutput 
+    registerPasskey, getPasskeyPrfOutput 
   } from "$lib/webauthn";
 
   // Import shadcn-svelte components
@@ -34,7 +34,6 @@
 
   // App state
   let appState = $state<"loading" | "setup" | "locked" | "dashboard">("loading");
-  let prfSupported = $state(false);
 
   // Cryptographic secrets in memory (never stored to disk)
   let rawMekBytes = $state<Uint8Array | null>(null);
@@ -48,7 +47,7 @@
   let setupError = $state("");
   let setupSuccess = $state(false);
   let generatedRecoveryKey = $state("");
-  let firstPasskeyName = $state("Primary Passkey");
+  let firstPasskeyName = $state("Vault Passkey");
 
   // Dashboard state
   let decryptedCredentials = $state<{
@@ -120,7 +119,6 @@
   onMount(async () => {
     try {
       await initDb();
-      prfSupported = await checkPrfSupport();
       const isInitialized = await checkVaultInitialized();
       
       if (isInitialized) {
@@ -433,7 +431,7 @@
       alert("You cannot delete your only passkey. Please add a backup passkey first to avoid lockout.");
       return;
     }
-    if (!confirm("Are you sure you want to delete this backup passkey? You will no longer be able to unlock your database with it.")) return;
+    if (!confirm("Are you sure you want to delete this backup passkey? You will no longer be able to unlock your vault with it.")) return;
     try {
       await deletePasskey(id);
       passkeysList = await loadPasskeys();
@@ -503,7 +501,7 @@
   {#if appState === "loading"}
     <div class="flex-1 flex flex-col items-center justify-center space-y-4" in:fade>
       <div class="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-      <p class="text-muted-foreground font-medium tracking-wide">Securing database...</p>
+      <p class="text-muted-foreground font-medium tracking-wide">Securing vault...</p>
     </div>
 
   <!-- SETUP STATE -->
@@ -516,24 +514,14 @@
           </div>
           <Card.Title class="text-3xl font-extrabold tracking-tight">RevPass</Card.Title>
           <Card.Description class="text-sm">
-            Create a secure, zero-knowledge, local-first database protected directly by your device's biometric Passkey (via the WebAuthn PRF extension).
+            Create a secure, zero-knowledge, local-first password vault protected directly by your device's biometric Passkey (via the WebAuthn PRF extension).
           </Card.Description>
         </Card.Header>
 
         <Card.Content class="space-y-6">
-          {#if !prfSupported}
-            <div class="flex gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-left text-destructive text-xs leading-normal">
-              <AlertTriangle class="w-5 h-5 shrink-0 text-destructive" />
-              <div>
-                <span class="font-semibold block mb-0.5">Warning: PRF Extension Not Detected</span>
-                Your platform WebView2 may not support WebAuthn PRF. You can still try to register, but if it fails, make sure Windows Hello is configured.
-              </div>
-            </div>
-          {/if}
-
           <div class="space-y-4">
             <div class="space-y-1.5 text-left">
-              <Label for="passkey-name" class="text-xs font-semibold uppercase tracking-wider">Primary Passkey Name</Label>
+              <Label for="passkey-name" class="text-xs font-semibold uppercase tracking-wider">Passkey Name</Label>
               <Input 
                 type="text" 
                 id="passkey-name"
